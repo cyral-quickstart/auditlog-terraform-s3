@@ -1,0 +1,5 @@
+.terraform/
+terraform.*
+files/log-collector.zip
+*.var
+.terraform*
