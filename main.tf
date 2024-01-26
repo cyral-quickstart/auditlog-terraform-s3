@@ -4,6 +4,7 @@ resource "random_id" "this" {
 
 locals {
   secret_arn          = var.secret_arn != "" ? var.secret_arn : aws_secretsmanager_secret.secret[0].arn
+  create_lambda_role  = var.lambda_execution_role == "" 
 }
 
 data "aws_partition" "current" {}
@@ -79,6 +80,7 @@ data "aws_iam_policy_document" "execution_policy" {
 }
 
 resource "aws_iam_role" "this" {
+  count              = local.create_lambda_role ? 1 : 0
   name               = "${var.function_name}-execution-role"
   assume_role_policy = data.aws_iam_policy_document.assume_role_policy.json
   inline_policy {
@@ -124,7 +126,7 @@ data "archive_file" "lambda_script" {
 
 resource "aws_lambda_function" "this" {
   function_name = var.function_name
-  role          = aws_iam_role.this.arn
+  role          = local.create_lambda_role ? aws_iam_role.this[0].arn : var.lambda_execution_role
   timeout       = var.timeout
   runtime       = "python3.10"
   filename         = data.archive_file.lambda_script.output_path
