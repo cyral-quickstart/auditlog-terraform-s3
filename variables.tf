@@ -16,6 +16,18 @@ variable "secret_arn" {
   default     = ""
 }
 
+variable "cyral_secret_arn" {
+  type        = string
+  description = <<EOF
+    ARN of the entry in AWS Secrets Manager that stores the secret containing
+    the credentials for the Cyral API. Either this OR the `cyral_client_id` and
+    `cyral_client_secret` variables are REQUIRED. If empty, the
+    `cyral_client_id` and `cyral_client_secret` variables MUST both be
+    provided, and a new secret will be created in AWS Secrets Manager.
+  EOF
+  default     = ""
+}
+
 variable "client_id" {
   type        = string
   description = <<EOF
@@ -91,4 +103,10 @@ variable "timeout" {
   type = number
   description = "timeout value for lambda function"
   default = 60
+}
+
+variable "lambda_execution_role" {
+  type = string
+  description = "Provide the role if you have a specific role you'd like to use or leave blank for it to be created"
+  default = ""
 }
