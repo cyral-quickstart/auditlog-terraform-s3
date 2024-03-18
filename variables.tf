@@ -110,3 +110,9 @@ variable "lambda_execution_role" {
   description = "Provide the role if you have a specific role you'd like to use or leave blank for it to be created"
   default = ""
 }
+
+variable "report_cyral_users" {
+  type = bool
+  description = "Include a reprot of the cyral users and role"
+  default = false
+}

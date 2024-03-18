@@ -143,6 +143,7 @@ resource "aws_lambda_function" "this" {
       STATE_FILE_PATH           = var.state_file_path
       STATE_FILE_BUCKET         = var.state_file_bucket
       FILE_NAME_FORMAT          = var.file_name_format
+      REPORT_CYRAL_USERS        = var.report_cyral_users
     }
   }
   depends_on = [ aws_iam_role.this ]

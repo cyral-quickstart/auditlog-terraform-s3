@@ -12,6 +12,7 @@ def handler(event, context):
     '''entry point for lambda'''
 
     default_fn_format = 'cyral_audit_log_{start:%Y-%m-%dT%H-%M-%S}_to_{end:%Y-%m-%dT%H-%M-%S}.log'
+    default_user_format = 'cyral_user_list_{end:%Y-%m-%dT%H-%M-%S}.log'
 
     # required env vars
     cyral_creds_secret_arn = os.environ.get("CYRAL_CREDS_SECRET_ARN")
@@ -23,6 +24,7 @@ def handler(event, context):
     state_file_path = os.environ.get("STATE_FILE_PATH", 'audit_pull.state')
     state_file_bucket = os.environ.get("STATE_FILE_BUCKET") or audit_log_bucket
     file_name_format = os.environ.get("FILE_NAME_FORMAT", default_fn_format)
+    report_cyral_users = os.environ.get("REPORT_CYRAL_USERS", "false") 
 
     # setup
     end_date = datetime.utcnow()
@@ -86,6 +88,23 @@ def handler(event, context):
             'statusCode': 500,
             'body': json.dumps({'error': 'Failed to write to S3! check logs'})
          }
+    # pull user data and write to S3
+    if report_cyral_users == "true":
+        user_log_file_path = os.path.join(audit_log_path, (default_user_format.format(end=end_date)))
+        try:
+            user_data = get_cyral_user_config(control_plane=cyral_control_plane, client_token=token)
+        except Exception as e:
+            print(f"Failed to retrieve user configuration: {e}")
+            return {
+                'statusCode': 500,
+                'body': json.dumps({'error': f'{e}'})
+            }
+        result = write_to_s3(audit_log_bucket, user_log_file_path, user_data)
+        if not result:
+            return {
+                'statusCode': 500,
+                'body': json.dumps({'error': 'Failed to write user data to S3! check logs'})
+            }
 
     # update state
     result = write_to_s3(state_file_bucket, state_file_path,
@@ -203,3 +222,35 @@ def get_cyral_audit_log(control_plane, client_token, start_date, end_date):
         print(f"An error occured pulling log data: {e}")
 
     return None
+
+def get_cyral_user_config(control_plane, client_token):
+    '''pull the current list of users and their configuration'''
+    
+    exclude_user_keys = [ 'userId', 'identites', 'zoneInfo', 'picture', 'roleSources','identityProviders' ]
+    
+    url = f"https://{control_plane}/v1/users/users"
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {client_token}"
+    }
+
+    http = urllib3.PoolManager()
+
+    try:
+        response = http.request("GET", url, headers=headers)
+        if response.status == 200:
+            users = json.loads(response.data.decode('utf-8'))['users']
+            filtered_users = []
+            for user in users:
+                filtered_user = {key: value for key, value in user.items() if key not in exclude_user_keys}
+                filtered_users.append(filtered_user)
+
+            return json.dumps(filtered_users, indent=4)
+        else:
+            print(f"Error: {response.status}, {response.data}")
+            exit(2)
+    except Exception as e:
+        print(f"An error occured pulling log data: {e}")
+
+    return None
+    
